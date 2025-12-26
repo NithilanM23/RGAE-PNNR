@@ -9,104 +9,77 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torchvision import transforms
 
-# --- (Settings and Helper Functions remain the same) ---
+# ============================================================
+# ---------------------- CONFIG ------------------------------
+# ============================================================
+
 DATA_ROOT = os.path.dirname(__file__) if "__file__" in globals() else os.getcwd()
-# CATEGORY = "wallplugs"
-# # ... (all other settings and helper functions are identical) ...
-# VALIDATE_PATH_CANDIDATES = [
-#     os.path.join(DATA_ROOT, CATEGORY, CATEGORY, "train", "good"),
-#     os.path.join(DATA_ROOT, CATEGORY, "train", "good"),
-#     os.path.join(DATA_ROOT, CATEGORY, CATEGORY, "train", "good"),
-#     os.path.join(DATA_ROOT, CATEGORY, "train", "good"),
-# ]
 
 NUM_IMAGES = 1500
-
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# DINO feature extraction params
+# DINO params
 DINO_BASE_SIZE = 518
 DINO_PATCH_SIZE = 14
 
-# INP training params
+# RGAE training
 EPOCHS = 5
 BATCH_SIZE = 4
 LR = 1e-4
 
-# CPR bank
+# PNNR
+PNNR_SAMPLE_RATIO = 0.5
 MAX_BANK_SIZE = 100000
 
-# Save paths (use script folder)
 SCRIPT_DIR = os.path.dirname(__file__) if "__file__" in globals() else os.getcwd()
-MODEL_PATH = os.path.join(SCRIPT_DIR, "models", "Ad2KWallpGatedInp_train.pth")
-BANK_SAVE_PATH = os.path.join(SCRIPT_DIR, "models", "Ad2KWallpGatedcpr_bank.npy")
+MODEL_PATH = os.path.join(SCRIPT_DIR, "models", "RGAE_AD2.pth")
+PNNR_BANK_PATH = os.path.join(SCRIPT_DIR, "models", "pnnr_bank.npy")
 
 _feature_extractor = None
 
-def load_dinov2_model():
+# ============================================================
+# ------------------- DINO FEATURES ---------------------------
+# ============================================================
+
+def load_dino():
     global _feature_extractor
     if _feature_extractor is not None:
         return _feature_extractor
-    print(f"Loading DINOv2 model (torch.hub) on device {DEVICE}", flush=True)
-    try:
-        _feature_extractor = torch.hub.load('facebookresearch/dinov2', 'dinov2_vitb14').to(DEVICE)
-        _feature_extractor.eval()
-        patch_sz = getattr(_feature_extractor.patch_embed, "patch_size", None)
-        if isinstance(patch_sz, (tuple, list)):
-            patch_sz = patch_sz[0]
-        print(f"Loaded DINOv2. patch_size={patch_sz}", flush=True)
-    except Exception as e:
-        print("Failed to load DINOv2 model (network or hub issue). Falling back to dummy features.", flush=True)
-        print("Error:", e, flush=True)
-        _feature_extractor = None
+
+    _feature_extractor = torch.hub.load(
+        "facebookresearch/dinov2", "dinov2_vitb14"
+    ).to(DEVICE).eval()
+
     return _feature_extractor
 
-def preprocess_image(img_np: np.ndarray, size: tuple):
+
+def preprocess(img_np, size):
     t = transforms.Compose([
         transforms.ToPILImage(),
         transforms.Resize(size),
         transforms.ToTensor(),
-        transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                             std=[0.229, 0.224, 0.225]),
+        transforms.Normalize(
+            mean=[0.485, 0.456, 0.406],
+            std=[0.229, 0.224, 0.225]
+        ),
     ])
     return t(img_np).unsqueeze(0).to(DEVICE)
 
-def extract_spatial_features(img_np: np.ndarray, strategy="multi-scale"):
-    """Return numpy array (grid_h, grid_w, C). If DINO not available, return random features."""
-    model = load_dinov2_model()
-    if model is None:
-        # Dummy features: choose grid ~ DINO expected base/patch
-        grid = DINO_BASE_SIZE // DINO_PATCH_SIZE
-        feat_dim = 768 * (3 if strategy == "multi-scale" else 1)
-        return np.random.randn(grid, grid, feat_dim).astype(np.float32)
 
-    patch_size = model.patch_embed.patch_size[0]
+def extract_dino_features(img_np):
+    model = load_dino()
+
     with torch.no_grad():
-        if strategy == "single-scale":
-            size = (DINO_BASE_SIZE, DINO_BASE_SIZE)
-            img_t = preprocess_image(img_np, size)
-            features = model.get_intermediate_layers(img_t, n=1, reshape=True)[0]
-        else:
-            scales = [1.0, 0.75, 0.5]
-            base = DINO_BASE_SIZE
-            feats = []
-            for s in scales:
-                h = int(base * s) // patch_size * patch_size
-                w = int(base * s) // patch_size * patch_size
-                if h == 0 or w == 0:
-                    continue
-                img_t = preprocess_image(img_np, (h, w))
-                f = model.get_intermediate_layers(img_t, n=1, reshape=True)[0]
-                f = torch.nn.functional.interpolate(
-                    f, size=(base // patch_size, base // patch_size), mode='bilinear', align_corners=False
-                )
-                feats.append(f)
-            features = torch.cat(feats, dim=1)
-    features = features.squeeze(0).permute(1, 2, 0).cpu().numpy()
-    return features
+        img_t = preprocess(img_np, (DINO_BASE_SIZE, DINO_BASE_SIZE))
+        feat = model.get_intermediate_layers(img_t, n=1, reshape=True)[0]
 
+    return feat.squeeze(0).permute(1, 2, 0).cpu().numpy()
 
-class MockTransformerBlock(nn.Module):
+# ============================================================
+# ------------------ RGAE MODEL -------------------------------
+# ============================================================
+
+class LightFFNBlock(nn.Module):
     def __init__(self, dim, dropout=0.1):
         super().__init__()
         self.norm = nn.LayerNorm(dim)
@@ -121,8 +94,8 @@ class MockTransformerBlock(nn.Module):
         return x + self.ffn(self.norm(x))
 
 
-class INP_Former(nn.Module):
-    def __init__(
+class RGAE_Reconstructor(nn.Module):
+def __init__(
         self,
         feature_dim,
         grid_h,
@@ -207,66 +180,54 @@ class INP_Former(nn.Module):
 
         return None, out
 
+# ============================================================
+# ------------------ TRAINING -------------------------------
+# ============================================================
 
-class FeatureMapDataset(torch.utils.data.Dataset):
-    def __init__(self, features_list):
-        self.features = [torch.from_numpy(f).permute(2,0,1).float() for f in features_list]
+class FeatureDataset(torch.utils.data.Dataset):
+    def __init__(self, feats):
+        self.feats = [torch.from_numpy(f).permute(2,0,1).float() for f in feats]
 
     def __len__(self):
-        return len(self.features)
+        return len(self.feats)
 
-    def __getitem__(self, idx):
-        return self.features[idx]
+    def __getitem__(self, i):
+        return self.feats[i]
 
-# --- MODIFIED TRAINING FUNCTION ---
-def train_inp_with_features(feature_maps_np, grid_h, grid_w, feature_dim,
-                            epochs=EPOCHS, batch_size=BATCH_SIZE, lr=LR, device=DEVICE):
-    dataset = FeatureMapDataset(feature_maps_np)
-    loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=True)
-    model = INP_Former(feature_dim, grid_h, grid_w, num_layers=2).to(device)
-    
-    # --- 🔹 Set up differential learning rates ---
-    # Give the gate a much higher learning rate to encourage it to learn
-    gate_lr = 1e-2 
-    
-    # Separate the parameters into two groups
-    gate_params = [p for name, p in model.named_parameters() if 'gate_weights' in name]
-    base_params = [p for name, p in model.named_parameters() if 'gate_weights' not in name]
-    
-    optimizer = torch.optim.Adam([
-        {'params': base_params, 'lr': lr},
-        {'params': gate_params, 'lr': gate_lr}
-    ], lr=lr)
-    # ---------------------------------------------
-    
-    criterion = nn.MSELoss()
-    print("Starting INP training with differential learning rate...", flush=True)
-    
-    for epoch in range(epochs):
-        model.train()
-        running_loss = 0.0
-        for batch in loader:
-            batch = batch.to(device)
+
+def train_rgae_with_features(feats, feature_dim):
+    dataset = FeatureDataset(feats)
+    loader = torch.utils.data.DataLoader(
+        dataset, batch_size=BATCH_SIZE, shuffle=True
+    )
+
+    model = RGAE_Reconstructor(feature_dim).to(DEVICE)
+    optimizer = torch.optim.Adam(model.parameters(), lr=LR)
+    loss_fn = nn.MSELoss()
+
+    print("Training RGAE...", flush=True)
+
+    for ep in range(EPOCHS):
+        total = 0
+        for x in loader:
+            x = x.to(DEVICE)
             optimizer.zero_grad()
-            _, recon = model(batch)
-            loss = criterion(recon, batch)
+            recon = model(x)
+            loss = loss_fn(recon, x)
             loss.backward()
             optimizer.step()
-            running_loss += loss.item() * batch.size(0)
-        epoch_loss = running_loss / len(dataset)
-        
-        # Also print the learned gate weights to see if they are changing
-        with torch.no_grad():
-            learned_gates = torch.softmax(model.gate_weights, dim=0).cpu().numpy()
-        print(f"Epoch {epoch+1}/{epochs} - Loss: {epoch_loss:.6f} - Gates: {np.round(learned_gates, 3)}", flush=True)
+            total += loss.item()
+        print(f"Epoch {ep+1}/{EPOCHS} | Loss: {total/len(loader):.6f}", flush=True)
 
-    print("INP training finished.", flush=True)
     os.makedirs(os.path.dirname(MODEL_PATH), exist_ok=True)
     torch.save(model.state_dict(), MODEL_PATH)
-    print("Saved INP model to", MODEL_PATH, flush=True)
     return model
 
-def build_cpr_bank(feature_maps_np, max_bank_size=MAX_BANK_SIZE, seed=42):
+# ============================================================
+# ------------------ PNNR BANK -------------------------------
+# ============================================================
+
+def build_pnnr_bank(feats):
     rng = np.random.RandomState(seed)
     all_patches = []
     for f in feature_maps_np:
@@ -286,10 +247,10 @@ def build_cpr_bank(feature_maps_np, max_bank_size=MAX_BANK_SIZE, seed=42):
     np.save(BANK_SAVE_PATH, bank)
     np.save(BANK_SAVE_PATH.replace(".npy", "_norm.npy"), bank_normed)
     print(f"Saved CPR bank: {BANK_SAVE_PATH}  (size={bank.shape[0]} x {bank.shape[1]})", flush=True)
-    return bank, bank_normed
+    return bank, bank_normed bank, bank_norm
 
 
-def cpr_reconstruct_from_bank(feature_map_np, bank_normed, bank_raw):
+def pnnr_reconstruct(feature_map, bank, bank_norm):
     device = DEVICE
     q = torch.from_numpy(feature_map_np.reshape(-1, feature_map_np.shape[2])).to(device).float()
     q_norm = F.normalize(q, dim=1)
@@ -302,90 +263,34 @@ def cpr_reconstruct_from_bank(feature_map_np, bank_normed, bank_raw):
     recon_map = recon.reshape(H, W, C)
     return recon_map
 
-
-def gather_training_images(folder_path, num_images=NUM_IMAGES):
-    image_extensions = ['.png', '.jpg', '.jpeg', '.bmp']
-    if not os.path.exists(folder_path):
-        raise RuntimeError(f"No folder found at {folder_path}")
-    all_images = [os.path.join(folder_path, f)
-                  for f in os.listdir(folder_path)
-                  if os.path.splitext(f)[1].lower() in image_extensions]
-    if len(all_images) == 0:
-        raise RuntimeError(f"No image files found in {folder_path}")
-    selected = sorted(all_images)[:min(num_images, len(all_images))]
-    print(f"Selected {len(selected)} images for training from {folder_path}", flush=True)
-    return selected
-
+# ============================================================
+# ------------------ MAIN -----------------------------------
+# ============================================================
 
 if __name__ == "__main__":
     try:
-        VALIDATE_PATH = None
-        for p in VALIDATE_PATH_CANDIDATES:
-            if os.path.exists(p) and os.path.isdir(p):
-                VALIDATE_PATH = p
-                break
-        if VALIDATE_PATH is None:
-            matches = []
-            for root, dirs, files in os.walk(os.path.join(DATA_ROOT, CATEGORY)):
-                for d in dirs:
-                    if "valid" in d.lower():
-                        matches.append(os.path.join(root, d))
-            if matches:
-                VALIDATE_PATH = matches[0]
-        if VALIDATE_PATH is None:
-            VALIDATE_PATH = VALIDATE_PATH_CANDIDATES[0]
+        image_files = sorted(os.listdir(DATA_ROOT))[:NUM_IMAGES]
 
-        print("Using validation folder:", VALIDATE_PATH, flush=True)
+        features = []
+        for p in tqdm(image_files):
+            img = np.array(Image.open(p).convert("RGB"))
+            features.append(extract_dino_features(img))
 
-        img_paths = gather_training_images(VALIDATE_PATH, NUM_IMAGES)
-        print("DEBUG: img_paths collected =", img_paths, flush=True)
+        H, W, C = features[0].shape
 
-        print("Extracting DINOv2 features for training images (this may take time).", flush=True)
-        feats = []
-        for p in tqdm(img_paths, desc="DINO extract"):
-            img_np = np.array(Image.open(p).convert("RGB"))
-            feat = extract_spatial_features(img_np, strategy="single-scale")
-            feats.append(feat.astype(np.float32))
+        rgae = train_rgae_with_features(features, C)
+        bank, bank_norm = build_pnnr_bank(features)
 
-        grid_h, grid_w, feature_dim = feats[0].shape
-        print("Feature grid:", grid_h, grid_w, "feature_dim:", feature_dim, flush=True)
+        test_feat = features[0]
 
-        inp_model = train_inp_with_features(feats, grid_h, grid_w, feature_dim,
-                                            epochs=EPOCHS, batch_size=BATCH_SIZE, lr=LR, device=DEVICE)
-
-        print("Building CPR bank (subsampling patches)...", flush=True)
-        bank_raw, bank_normed = build_cpr_bank(feats, max_bank_size=MAX_BANK_SIZE)
-
-        test_idx = 0
-        test_feat = feats[test_idx]
-        inp_model.eval()
         with torch.no_grad():
-            t = torch.from_numpy(test_feat).permute(2, 0, 1).unsqueeze(0).float().to(DEVICE)
-            _, recon_t = inp_model(t)
-            recon_np = recon_t.squeeze(0).permute(1, 2, 0).cpu().numpy()
+            t = torch.from_numpy(test_feat).permute(2,0,1).unsqueeze(0).to(DEVICE)
+            recon_rgae = rgae(t).squeeze().permute(1,2,0).cpu().numpy()
 
-        bank_norm_path = BANK_SAVE_PATH.replace(".npy", "_norm.npy")
-        bank_norm_loaded = np.load(bank_norm_path)
-        bank_raw_loaded = np.load(BANK_SAVE_PATH)
-        recon_from_bank = cpr_reconstruct_from_bank(test_feat, bank_norm_loaded, bank_raw_loaded)
+        recon_pnnr = pnnr_reconstruct(test_feat, bank, bank_norm)
+        anomaly_map = np.mean((recon_rgae - recon_pnnr) ** 2, axis=2)
 
-        amap = np.mean((recon_np - recon_from_bank) ** 2, axis=2)
-        orig_img = np.array(Image.open(img_paths[test_idx]).convert("RGB"))
-        H_orig, W_orig = orig_img.shape[:2]
-        amap_up = F.interpolate(torch.from_numpy(amap).unsqueeze(0).unsqueeze(0),
-                               size=(H_orig, W_orig), mode='bilinear', align_corners=False).squeeze().numpy()
-        amap_norm = (amap_up - amap_up.min()) / (np.ptp(amap_up) + 1e-8)
-        amap_img = (255 * amap_norm).astype(np.uint8)
+        print("RGAE + PNNR pipeline finished successfully ✔")
 
-        out_path = os.path.join(SCRIPT_DIR, "models", "anomaly_test_inp_cpr.png")
-        os.makedirs(os.path.dirname(out_path), exist_ok=True)
-        import cv2
-        cv2.imwrite(out_path, amap_img)
-        print("Saved test anomaly map to:", out_path, flush=True)
-
-        print("All done. Trained INP saved to:", MODEL_PATH, "CPR bank saved to:", BANK_SAVE_PATH, flush=True)
-
-    except Exception as e:
-        print("ERROR during execution:", str(e), flush=True)
+    except Exception:
         traceback.print_exc()
-        raise
