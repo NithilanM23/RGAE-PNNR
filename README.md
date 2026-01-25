@@ -50,19 +50,20 @@ To train the model on a specific category (e.g., candle). This will automaticall
 
 python train.py --data_root ./data/mvtec_ad --category candle --epochs 50
 Arguments:
-
+```
 --data_root: Path to the dataset root folder.
 
 --category: The class name (e.g., bottle, hazelnut).
 
 --epochs: Number of training epochs (default: 5).
-
+```
 2. Evaluation
 To evaluate the trained model and calculate Image-level AUC and Pixel-level AUC.
-
+```
 python test.py --data_root ./data/mvtec_ad --category candle --checkpoint_dir ./checkpoints
-
+```
 3. Visualization (Heatmaps)
 To generate anomaly heatmaps overlayed on the test images. This will automatically create a heatmaps/ folder and save the images there.
-
+```
 python heatmap.py --data_path ./data/mvtec_ad/candle/test/bad --checkpoint_dir ./checkpoin
+```
