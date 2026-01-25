@@ -32,7 +32,7 @@ Download the dataset from the official website.
 
 Extract it into a data folder so the structure looks like this:
 
-Plaintext
+```
 RGAE-PNNR/
 └── data/
     └── mvtec_ad/
@@ -42,7 +42,7 @@ RGAE-PNNR/
         ├── cable/
         └── ...
 
-
+```
 Usage
 1. Training
 To train the model on a specific category (e.g., candle). This will automatically create a checkpoints/ folder and save the model (.pth) and memory bank (.npy).
