@@ -33,7 +33,7 @@ This repository supports any anomaly detection dataset (MVTec AD, VisA, or your 
 **Official Download Links:**
 * **MVTec AD:** [Download Here](https://www.mvtec.com/company/research/datasets/mvtec-ad)
 * **VisA:** [Download Here](https://github.com/amazon-science/spot-diff)
-* 
+
 Extract it into a data folder so the structure looks like this:
 
 ```
