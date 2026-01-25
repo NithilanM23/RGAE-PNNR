@@ -18,14 +18,15 @@ Our method combines a **Residual Gated Autoencoder (RGAE)** with a **Prototype N
 ```
 🚀 Setup & Installation
 1. Clone the Repository:
-
+```
 git clone [https://github.com/NithilanM23/RGAE-PNNR.git](https://github.com/NithilanM23/RGAE-PNNR.git)
 cd RGAE-PNNR
-
+```
 2. Install Dependencies
+```
 pip install -r requirements.txt
-
-3. Prepare the Dataset
+```
+4. Prepare the Dataset
 This repository supports the MVTec AD dataset.
 
 Download the dataset from the official website.
