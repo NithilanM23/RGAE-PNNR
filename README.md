@@ -30,7 +30,10 @@ pip install -r requirements.txt
 ```
 3. Prepare the Dataset
 This repository supports any anomaly detection dataset (MVTec AD, VisA, or your own) as long as it follows this standard folder structure:
-
+**Official Download Links:**
+* **MVTec AD:** [Download Here](https://www.mvtec.com/company/research/datasets/mvtec-ad)
+* **VisA:** [Download Here](https://github.com/amazon-science/spot-diff)
+* 
 Extract it into a data folder so the structure looks like this:
 
 ```
