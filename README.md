@@ -26,22 +26,21 @@ cd RGAE-PNNR
 ```
 pip install -r requirements.txt
 ```
-4. Prepare the Dataset
-This repository supports the MVTec AD dataset.
-
-Download the dataset from the official website.
+3. Prepare the Dataset
+This repository supports any anomaly detection dataset (MVTec AD, VisA, or your own) as long as it follows this standard folder structure:
 
 Extract it into a data folder so the structure looks like this:
 
 ```
 RGAE-PNNR/
-└── data/
-    └── mvtec_ad/
-        ├── bottle/
-        │   ├── train/
-        │   └── test/
-        ├── cable/
-        └── ...
+└── <category_name>/          # e.g., 'bottle', 'pcb_board', 'fabric'
+    ├── train/
+    │   └── good/             # Normal images for training
+    ├── test/
+    │   ├── good/             # Normal test images
+    │   └── bad/              # Anomalous test images
+    └── ground_truth/        
+        └── bad/              # Mask files must match filenames in test/bad
 
 ```
 Usage
