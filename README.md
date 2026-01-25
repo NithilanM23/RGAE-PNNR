@@ -46,9 +46,9 @@ RGAE-PNNR/
 Usage
 1. Training
 To train the model on a specific category (e.g., candle). This will automatically create a checkpoints/ folder and save the model (.pth) and memory bank (.npy).
-
-
+```
 python train.py --data_root ./data/mvtec_ad --category candle --epochs 50
+```
 Arguments:
 ```
 --data_root: Path to the dataset root folder.
