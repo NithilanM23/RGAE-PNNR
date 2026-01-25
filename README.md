@@ -1,10 +1,12 @@
 # RGAE-PNNR: Residual Gated Autoencoder for Anomaly Detection
 
-This repository contains the official PyTorch implementation of the paper **"[Insert Your Paper Title Here]"**.
+This repository contains the official implementation of the paper **"[Residual Gated AutoEncoder with Patchwise
+Nearest Neighbor Reconstruction for Visual
+Anomaly Detection]"**.
 
-Our method combines a **Residual Gated Autoencoder (RGAE)** with a **Prototype Nearest Neighbor Retrieval (PNNR)** memory bank to achieve robust unsupervised anomaly detection. It is designed to work effectively on the MVTec AD and VisA datasets.
+Our method combines a **Residual Gated Autoencoder (RGAE)** with a **Patchwise Nearest Neighbor Reconstruction (PNNR)** memory bank to achieve robust unsupervised anomaly detection. It is designed to work effectively on the MVTec AD and VisA datasets and other similar AD datasets.
 
-## 📂 Project Structure
+##  Project Structure
 
 ```text
 .
@@ -16,7 +18,7 @@ Our method combines a **Residual Gated Autoencoder (RGAE)** with a **Prototype N
 ├── checkpoints/            # [Auto-generated] Saves trained models (.pth) and banks (.npy)
 └── heatmaps/               # [Auto-generated] Saves visualization results
 ```
-🚀 Setup & Installation
+Setup & Installation
 1. Clone the Repository:
 ```
 git clone [https://github.com/NithilanM23/RGAE-PNNR.git](https://github.com/NithilanM23/RGAE-PNNR.git)
@@ -33,21 +35,24 @@ Extract it into a data folder so the structure looks like this:
 
 ```
 RGAE-PNNR/
-└── <category_name>/          # e.g., 'bottle', 'pcb_board', 'fabric'
-    ├── train/
-    │   └── good/             # Normal images for training
-    ├── test/
-    │   ├── good/             # Normal test images
-    │   └── bad/              # Anomalous test images
-    └── ground_truth/        
-        └── bad/              # Mask files must match filenames in test/bad
+└── data/
+    ├── mvtec_ad/             <-- Dataset 1
+    │   ├── bottle/
+    │   ├── cable/
+    │   └── ...
+    │
+    ├── visa/                 <-- Dataset 2 (Optional)
+    │   ├── candle/
+    │   ├── macaroni1/
+    │   └── ...
+    │
 
 ```
 Usage
 1. Training
-To train the model on a specific category (e.g., candle). This will automatically create a checkpoints/ folder and save the model (.pth) and memory bank (.npy).
+To train the model on a specific category (e.g., bottle). This will automatically create a checkpoints/ folder and save the model (.pth) and memory bank (.npy).
 ```
-python train.py --data_root ./data/mvtec_ad --category candle --epochs 50
+python train.py --data_root ./data/mvtec_ad --category bottle --epochs 50
 ```
 Arguments:
 ```
@@ -55,15 +60,18 @@ Arguments:
 
 --category: The class name (e.g., bottle, hazelnut).
 
---epochs: Number of training epochs (default: 5).
+--epochs: Number of training epochs (default: 30).
 ```
 2. Evaluation
 To evaluate the trained model and calculate Image-level AUC and Pixel-level AUC.
 ```
-python test.py --data_root ./data/mvtec_ad --category candle --checkpoint_dir ./checkpoints
+python test.py --data_root ./data/mvtec_ad/bottle/test/bad --category candle --checkpoint_dir ./checkpoints
 ```
 3. Visualization (Heatmaps)
 To generate anomaly heatmaps overlayed on the test images. This will automatically create a heatmaps/ folder and save the images there.
 ```
 python heatmap.py --data_path ./data/mvtec_ad/candle/test/bad --checkpoint_dir ./checkpoin
 ```
+
+📄 License
+This project is licensed under the MIT License.
