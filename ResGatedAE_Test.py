@@ -15,7 +15,7 @@ from sklearn.metrics import roc_auc_score
 # ============================================================
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 DINO_BASE_SIZE = 518
-PIXEL_SUBSAMPLE_PERCENT = 0.5  # Speeds up pixel-AUC calculation
+PIXEL_SUBSAMPLE_PERCENT = 0.5  # To speed up pixel-AUC calculation
 
 # Global cache for DINO model
 _feature_extractor = None
@@ -40,7 +40,6 @@ class LightFFNBlock(nn.Module):
         )
 
     def forward(self, x, *args, **kwargs):
-        # *args allows compatibility if 'kv' is passed by mistake
         return x + self.ffn(self.norm(x))
 
 class RGAE(nn.Module):
@@ -132,14 +131,13 @@ def load_dinov2_model():
         _feature_extractor.eval()
         print("✔ DINOv2 loaded.")
     except Exception as e:
-        print(f"❌ Failed to load DINOv2: {e}")
+        print(f"Failed to load DINOv2: {e}")
         return None
     return _feature_extractor
 
 def extract_spatial_features(img_np):
     model = load_dinov2_model()
     
-    # Fallback if model fails (for testing flow without internet)
     if model is None:
         return np.random.randn(37, 37, 768).astype(np.float32)
 
@@ -190,8 +188,8 @@ def run_evaluation(args):
     mask_dir = os.path.join(args.data_root, args.category, "ground_truth", "bad")
 
     if not os.path.exists(model_path) or not os.path.exists(bank_path):
-        print(f"❌ Error: Model files not found in {args.checkpoint_dir}")
-        print(f"   Expected: {model_path} and {bank_path}")
+        print(f"Error: Model files not found in {args.checkpoint_dir}")
+        print(f"Expected: {model_path} and {bank_path}")
         return
 
     # 2. Init Models
@@ -204,8 +202,6 @@ def run_evaluation(args):
     rgae.eval()
     
     aggregator = AnomalyAggregator().to(DEVICE).eval()
-    # Note: If you trained the aggregator, load its weights here:
-    # aggregator.load_state_dict(torch.load(os.path.join(args.checkpoint_dir, "aggregator.pth")))
 
     # 3. Load Bank
     pnnr_bank_raw = np.load(bank_path)
@@ -226,7 +222,7 @@ def run_evaluation(args):
                     images.append((os.path.join(folder, f), label))
 
     if not images:
-        print("❌ No images found for evaluation.")
+        print("No images found for evaluation.")
         return
 
     print(f"Testing {len(images)} images...")
@@ -236,13 +232,13 @@ def run_evaluation(args):
         img_np = np.array(img)
         feat_np = extract_spatial_features(img_np)
         
-        # RGAE Recon
+        # RGAE Reconstruction
         with torch.no_grad():
             t = torch.from_numpy(feat_np).permute(2, 0, 1).unsqueeze(0).to(DEVICE).float()
             _, recon_rgae = rgae(t)
             recon_rgae_np = recon_rgae.squeeze(0).permute(1, 2, 0).cpu().numpy()
             
-        # PNNR Recon
+        # PNNR Reconstruction
         recon_pnnr = pnnr_reconstruct_from_bank(feat_np, pnnr_bank_normed, pnnr_bank_raw)
         
         # Anomaly Map Calculation
@@ -266,7 +262,7 @@ def run_evaluation(args):
         # Ground Truth Mask
         if label == 1: # Bad
             mask_name = os.path.basename(img_path).split('.')[0]
-            # Try png first, then same extension as image
+            
             mask_path = os.path.join(mask_dir, mask_name + "_mask.png")
             if not os.path.exists(mask_path):
                  mask_path = os.path.join(mask_dir, mask_name + ".png")
