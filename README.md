@@ -6,7 +6,7 @@ Anomaly Detection"**.
 
 Our method combines a **Residual Gated Autoencoder (RGAE)** with a **Patchwise Nearest Neighbor Reconstruction (PNNR)** memory bank to achieve robust unsupervised anomaly detection. It is designed to work effectively on the MVTec AD and VisA datasets and other similar AD datasets.
 
-Architecture: RGAE-PNNR
+## Architecture: RGAE-PNNR
 <p align="center"> <img src="Images/Arch.png" width="750"/> </p> <p align="center"> <em>Overall architecture of the proposed Residual Gated Autoencoder with Patchwise Nearest Neighbor Reconstruction (RGAE-PNNR).</em> </p>
 
 ##  Project Structure
