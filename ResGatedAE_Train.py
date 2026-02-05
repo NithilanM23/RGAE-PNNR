@@ -46,7 +46,7 @@ def load_dinov2_model():
         _feature_extractor.eval()
         print("✔ DINOv2 Loaded.", flush=True)
     except Exception as e:
-        print(f"❌ Failed to load DINOv2: {e}")
+        print(f"Failed to load DINOv2: {e}")
         traceback.print_exc()
         return None
     return _feature_extractor
@@ -95,7 +95,6 @@ class LightFFNBlock(nn.Module):
         )
 
     def forward(self, x, *args, **kwargs):
-        # *args and **kwargs added to safely ignore 'kv' inputs if passed
         return x + self.ffn(self.norm(x))
 
 # ============================================================
@@ -140,8 +139,6 @@ class RGAE_Reconstructor(nn.Module):
         patch_tokens = x.flatten(2).permute(0, 2, 1)  # (B, HW, C)
 
         # 1. Aggregation 
-        # Note: Since we use FFN, proto doesn't actually 'attend' to patch_tokens here.
-        # It just transforms the learned prototype parameter.
         proto = self.prototype_token.expand(B, -1, -1)
         for blk in self.aggregation:
             proto = blk(proto) 
@@ -208,7 +205,7 @@ def train_rgae(feats, feature_dim, epochs, save_path):
 
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
     torch.save(model.state_dict(), save_path)
-    print(f"✔ Model saved to {save_path}")
+    print(f"Model saved to {save_path}")
     return model
 
 # ============================================================
@@ -241,7 +238,7 @@ def build_pnnr_bank(feats, save_path, max_bank_size=100000, seed=42):
     np.save(save_path, bank)
     np.save(save_path.replace(".npy", "_norm.npy"), bank_normed)
     
-    print(f"✔ PNNR Bank saved to {save_path} (Size: {bank.shape})")
+    print(f"PNNR Bank saved to {save_path} (Size: {bank.shape})")
     return bank, bank_normed
 
 def pnnr_reconstruct(feature_map, bank_raw, bank_normed):
@@ -273,7 +270,7 @@ if __name__ == "__main__":
 
     try:
         if not os.path.exists(args.data_path):
-            print(f"❌ Error: Data path '{args.data_path}' not found.")
+            print(f"Error: Data path '{args.data_path}' not found.")
             exit(1)
 
         # 1. Load Images
@@ -285,7 +282,7 @@ if __name__ == "__main__":
         ])
         
         if len(image_files) == 0:
-            print("❌ No images found! Check your path.")
+            print("No images found! Check your path.")
             exit(1)
 
         print(f"Found {len(image_files)} images. Extracting features...", flush=True)
