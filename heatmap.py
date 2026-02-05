@@ -94,9 +94,9 @@ def load_dinov2_model():
     try:
         _feature_extractor = torch.hub.load('facebookresearch/dinov2', 'dinov2_vitb14', verbose=False).to(DEVICE)
         _feature_extractor.eval()
-        print("✔ DINOv2 loaded successfully.")
+        print("DINOv2 loaded successfully.")
     except Exception as e:
-        print(f"❌ Failed to load DINOv2: {e}")
+        print(f"Failed to load DINOv2: {e}")
         return None
     return _feature_extractor
 
@@ -172,13 +172,13 @@ def generate_heatmaps(args):
         bank_path = os.path.join(args.checkpoint_dir, f"pnnr_bank_{args.category}.npy")
 
     if not os.path.exists(args.data_path):
-        print(f"❌ Error: Image directory not found: {args.data_path}")
+        print(f"Error: Image directory not found: {args.data_path}")
         return
     if not os.path.exists(model_path):
-        print(f"❌ Error: Model file not found: {model_path}")
+        print(f"Error: Model file not found: {model_path}")
         return
     if not os.path.exists(bank_path):
-        print(f"❌ Error: Bank file not found: {bank_path}")
+        print(f"Error: Bank file not found: {bank_path}")
         return
 
     os.makedirs(args.output_dir, exist_ok=True)
@@ -193,7 +193,7 @@ def generate_heatmaps(args):
     else:
         norms = np.linalg.norm(bank_raw, axis=1, keepdims=True) + 1e-8
         bank_normed = bank_raw / norms
-    print("✔ Bank Loaded.")
+    print("Bank Loaded.")
 
     # 3. Load DINO
     load_dinov2_model()
@@ -206,7 +206,7 @@ def generate_heatmaps(args):
     ])
     
     if not test_images:
-        print("❌ No images found in directory.")
+        print("No images found in directory.")
         return
     
     print(f"Found {len(test_images)} images. Processing...")
@@ -263,7 +263,7 @@ def generate_heatmaps(args):
         out_path = os.path.join(args.output_dir, f"heatmap_{img_name}")
         cv2.imwrite(out_path, overlay)
 
-    print(f"✔ Done! Heatmaps saved to: {args.output_dir}")
+    print(f"Heatmaps saved to: {args.output_dir}")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -275,3 +275,4 @@ if __name__ == "__main__":
     args = parser.parse_args()
     
     generate_heatmaps(args)
+
