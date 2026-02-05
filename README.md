@@ -9,12 +9,19 @@ Our method combines a **Residual Gated Autoencoder (RGAE)** with a **Patchwise N
 ## Architecture: RGAE-PNNR
 <p align="center"> <img src="Images/Arch.png" width="750"/> </p> <p align="center"> <em>Overall architecture of the proposed Residual Gated Autoencoder with Patchwise Nearest Neighbor Reconstruction (RGAE-PNNR).</em> </p>
 
-## Quantitative Results
-MVTec AD – Image & Pixel-level Performance
-<p align="center"> <img src="Images/MvTab.png" width="700"/> </p> <p align="center"> <em>Image-level and pixel-level AUC results on the MVTec AD dataset.</em> </p> <p align="center"> <img src="Images/MvQua.png" width="700"/> </p> <p align="center"> <em>Quantitative comparison with state-of-the-art methods on MVTec AD.</em> </p>
+## Qualitative Results
+### MVTec AD
+<p align="center"> <img src="Images/MvQua.png" width="750"/> </p> <p align="center"> <em>Qualitative anomaly localization results on the MVTec AD dataset.</em> </p>
 
-## VisA – Image & Pixel-level Performance
-<p align="center"> <img src="Images/VisTab.png" width="700"/> </p> <p align="center"> <em>Image-level and pixel-level AUC results on the VisA dataset.</em> </p> <p align="center"> <img src="Images/VisQua.png" width="700"/> </p> <p align="center"> <em>Quantitative comparison with state-of-the-art methods on VisA.</em> </p>
+### VisA
+<p align="center"> <img src="Images/VisQua.png" width="750"/> </p> <p align="center"> <em>Qualitative anomaly localization results on the VisA dataset.</em> </p>
+
+## Quantitative Results (Tables)
+### MVTec AD – Image-level & Pixel-level AUC
+<p align="center"> <img src="Images/MvTab.png" width="650"/> </p> <p align="center"> <em>Quantitative comparison on the MVTec AD dataset in terms of image-level and pixel-level AUC.</em> </p>
+
+### VisA – Image-level & Pixel-level AUC
+<p align="center"> <img src="Images/VisTab.png" width="650"/> </p> <p align="center"> <em>Quantitative comparison on the VisA dataset.</em> </p>
 
 ##  Project Structure
 
