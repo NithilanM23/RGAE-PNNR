@@ -20,7 +20,7 @@ Our method combines a **Residual Gated Autoencoder (RGAE)** with a **Patchwise N
 ### MVTec AD – Image-level & Pixel-level AUC
 <p align="center"> <img src="Images/MvTab.png" width="650"/> </p> <p align="center"> <em>Quantitative comparison on the MVTec AD dataset in terms of image-level and pixel-level AUC.</em> </p>
 
-### VisA – Image-level & Pixel-level AUC
+### VisA – Image-level AUC
 <p align="center"> <img src="Images/VisTab.png" width="650"/> </p> <p align="center"> <em>Quantitative comparison on the VisA dataset.</em> </p>
 
 ##  Project Structure
@@ -35,7 +35,7 @@ Our method combines a **Residual Gated Autoencoder (RGAE)** with a **Patchwise N
 ├── checkpoints/            # [Auto-generated] Saves trained models (.pth) and banks (.npy)
 └── heatmaps/               # [Auto-generated] Saves visualization results
 ```
-Setup & Installation
+## Setup & Installation
 1. Clone the Repository:
 ```
 git clone [https://github.com/NithilanM23/RGAE-PNNR.git](https://github.com/NithilanM23/RGAE-PNNR.git)
@@ -68,7 +68,7 @@ RGAE-PNNR/
     │
 
 ```
-Usage
+## Usage
 1. Training
 To train the model on a specific category (e.g., bottle). This will automatically create a checkpoints/ folder and save the model (.pth) and memory bank (.npy).
 ```
@@ -93,5 +93,5 @@ To generate anomaly heatmaps overlayed on the test images. This will automatical
 python heatmap.py --data_path ./data/mvtec_ad/candle/test/bad --checkpoint_dir ./checkpoin
 ```
 
-📄 License
+## License
 This project is licensed under the MIT License.
